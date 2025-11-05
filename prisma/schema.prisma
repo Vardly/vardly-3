@@ -1,0 +1,171 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  provider
+  user
+}
+
+enum VerificationStatus {
+  pending
+  verified
+  rejected
+}
+
+enum IntegrationType {
+  manual
+  ics
+  google_freebusy
+  external_api
+}
+
+enum SlotSource {
+  manual
+  ics
+  google
+  external
+}
+
+enum BookingStatus {
+  reserved
+  confirmed
+  cancelled
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  role      Role     @default(user)
+  phone     String?
+  createdAt DateTime @default(now())
+  providers Provider[]
+  bookings  Booking[]
+}
+
+model Provider {
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id])
+  orgNumber        String
+  name             String
+  slug             String   @unique
+  description      String?
+  address          String
+  lat              Float
+  lng              Float
+  city             String
+  zip              String
+  logoUrl          String?
+  verificationStatus VerificationStatus @default(pending)
+  documents        Json?
+  timezone         String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  services         Service[]
+  openingHours     OpeningHours[]
+  integrations     Integration[]
+  slots            Slot[]
+  bookings         Booking[]
+  priceHistories   PriceHistory[]
+  reviews          Review[]    // <— nytt fält
+}
+
+model Service {
+  id          String   @id @default(uuid())
+  providerId  String
+  provider    Provider @relation(fields: [providerId], references: [id])
+  name        String
+  description String?
+  durationMin Int
+  basePriceSEK Float
+  enabled     Boolean  @default(true)
+  slots       Slot[]
+  bookings    Booking[]
+  priceHistories PriceHistory[]
+}
+
+model OpeningHours {
+  id        String   @id @default(uuid())
+  providerId String
+  provider  Provider @relation(fields: [providerId], references: [id])
+  weekday    Int
+  opensAt    DateTime
+  closesAt   DateTime
+}
+
+model Integration {
+  id              String   @id @default(uuid())
+  providerId      String
+  provider        Provider @relation(fields: [providerId], references: [id])
+  type            IntegrationType
+  icsUrl          String?
+  googleCalendarId String?
+  externalApiConfig Json?
+  active          Boolean @default(true)
+}
+
+model Slot {
+  id         String   @id @default(uuid())
+  providerId String
+  provider   Provider @relation(fields: [providerId], references: [id])
+  serviceId  String?
+  service    Service? @relation(fields: [serviceId], references: [id])
+  start      DateTime
+  end        DateTime
+  source     SlotSource
+  fetchedAt  DateTime
+  isBookable Boolean  @default(true)
+  bookings   Booking[]
+}
+
+model Booking {
+  id          String   @id @default(uuid())
+  providerId  String
+  provider    Provider @relation(fields: [providerId], references: [id])
+  serviceId   String
+  service     Service  @relation(fields: [serviceId], references: [id])
+  slotId      String?
+  slot        Slot?    @relation(fields: [slotId], references: [id])
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  customerName String
+  email       String
+  phone       String
+  status      BookingStatus @default(reserved)
+  externalRef String?
+  createdAt   DateTime @default(now())
+  review      Review?  // <— tillåter en recension kopplad till bokningen
+}
+
+model PriceHistory {
+  id         String   @id @default(uuid())
+  providerId String
+  provider   Provider @relation(fields: [providerId], references: [id])
+  serviceId  String
+  service    Service  @relation(fields: [serviceId], references: [id])
+  priceSEK   Float
+  validFrom  DateTime
+}
+
+model Review {
+  id          String   @id @default(uuid())
+  providerId  String
+  provider    Provider @relation(fields: [providerId], references: [id])
+  rating      Int
+  comment     String?
+  byBookingId String   @unique
+  booking     Booking  @relation(fields: [byBookingId], references: [id])
+  createdAt   DateTime @default(now())
+}
+
+  priceSEK   Float
+  validFrom  DateTime
+}
