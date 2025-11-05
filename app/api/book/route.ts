@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '../../../lib/prisma';
 import { v4 as uuidv4 } from 'uuid';
-import { sendBookingConfirmation } from '@/lib/notifications';
+import { sendBookingConfirmation } from '../../../lib/notifications';
 
 export async function POST(request: Request) {
   const data = await request.json();
@@ -17,25 +17,36 @@ export async function POST(request: Request) {
         email: customer.email,
         phone: customer.phone,
         status: 'reserved',
-        externalRef: bookingRef,
+        externalReference: bookingRef,
       },
     });
+
     // Fetch provider and service names for notification
     const [provider, service] = await Promise.all([
-      prisma.provider.findUnique({ where: { id: providerId } }),
-      serviceId ? prisma.service.findUnique({ where: { id: serviceId } }) : Promise.resolve(null),
+      prisma.provider.findUnique({
+        where: { id: providerId },
+        select: { name: true },
+      }),
+      prisma.service.findUnique({
+        where: { id: serviceId },
+        select: { name: true },
+      }),
     ]);
-    // Send booking confirmation via email/SMS (stub implementation)
+
     await sendBookingConfirmation({
-      email: customer.email,
-      phone: customer.phone,
-      providerName: provider?.name || '',
-      serviceName: service?.name || '',
+      to: customer.email,
+      providerName: provider?.name ?? '',
+      serviceName: service?.name ?? '',
       bookingRef,
+      date: customer.date,
+      time: customer.time,
     });
-    return NextResponse.json({ success: true, reference: bookingRef });
+
+    return NextResponse.json({ bookingRef });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to create booking' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'An error occurred while booking the appointment.' },
+      { status: 500 },
+    );
   }
 }
