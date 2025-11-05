@@ -34,12 +34,10 @@ export async function POST(request: Request) {
     ]);
 
     await sendBookingConfirmation({
-      to: customer.email,
+      email: customer.email,
       providerName: provider?.name ?? '',
       serviceName: service?.name ?? '',
       bookingRef,
-      date: customer.date,
-      time: customer.time,
     });
 
     return NextResponse.json({ bookingRef });
